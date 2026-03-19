@@ -12,26 +12,22 @@ disable-model-invocation: true
 
 **이 단계는 Phase 1 시작 전에 반드시 실행해야 한다. 설계 없이 구현하지 않는다.**
 
-spec-kit 표준 폴더 구조를 기준으로 파일 존재 여부와 완성도를 확인한다:
+spec-kit 표준 폴더 구조는 `.spec/` 단일 디렉토리이다:
 
 ```
-.specify/
-└── memory/
-    └── constitution.md      ← 프로젝트 헌법 (필수)
-
-specs/
-└── {###-feature-name}/
-    ├── spec.md              ← 기능 명세 (필수)
-    ├── plan.md              ← 구현 계획 (필수)
-    └── tasks.md             ← 태스크 목록 (권장)
+.spec/
+├── constitution.md      ← 프로젝트 헌법 (필수)
+├── spec.md              ← 기능 명세 (필수)
+├── plan.md              ← 구현 계획 (필수)
+└── tasks.md             ← 태스크 목록 (권장)
 ```
 
 | 파일 | 경로 | 필수 여부 |
 |------|------|-----------|
-| Constitution | `.specify/memory/constitution.md` | 필수 |
-| Spec | `specs/*/spec.md` | 필수 |
-| Plan | `specs/*/plan.md` | 필수 |
-| Tasks | `specs/*/tasks.md` | 권장 |
+| Constitution | `.spec/constitution.md` | 필수 |
+| Spec | `.spec/spec.md` | 필수 |
+| Plan | `.spec/plan.md` | 필수 |
+| Tasks | `.spec/tasks.md` | 권장 |
 
 **판단 기준:**
 
@@ -59,20 +55,24 @@ Claude Max 사용자를 기본으로 한다. 호스트의 `~/.claude/` 디렉토
 
 ### 3. Dockerfile.claude 생성
 
-**중요**: 컨테이너 내부에서는 root로 실행한다. 컨테이너 자체가 샌드박스 역할을 하므로,
-별도 사용자를 만들면 Docker volume 권한 문제(node_modules 등)가 발생한다.
+**중요: 반드시 비root 사용자(`claude`)로 실행해야 한다.**
+`--dangerously-skip-permissions`는 root/sudo 권한에서 보안상 차단된다.
+비root 사용자를 생성하고 해당 사용자로 실행한다.
 
 ```dockerfile
 FROM node:20
 
 RUN npm install -g @anthropic-ai/claude-code pnpm typescript
 
+# 비root 사용자 생성 (--dangerously-skip-permissions는 root에서 차단됨)
+RUN useradd -m -s /bin/bash claude && \
+    mkdir -p /home/claude/.claude && \
+    chown -R claude:claude /home/claude
+
 # Git 설정
+USER claude
 RUN git config --global user.name "Docker Claude" && \
     git config --global user.email "claude@docker.local"
-
-# Claude Code 설정 디렉토리 (호스트의 ~/.claude가 마운트됨)
-RUN mkdir -p /root/.claude
 
 WORKDIR /workspace
 
@@ -83,6 +83,8 @@ CMD ["bash"]
 
 - `container_name`을 프로젝트 디렉토리 이름 기반으로 설정: `{프로젝트명}-claude`
 - 프로젝트 이름은 현재 디렉토리의 basename으로 결정 (예: `zoomlike` → `zoomlike-claude`)
+- **주의**: `docker compose run`은 `container_name`을 무시하고 랜덤 이름을 생성한다.
+  컨테이너 확인 시 `docker ps --filter "ancestor={이미지명}"` 사용.
 
 **Claude Max 사용자용 (호스트 인증 마운트):**
 
@@ -95,7 +97,7 @@ services:
       dockerfile: Dockerfile.claude
     volumes:
       - .:/workspace
-      # Claude Max 인증 정보 마운트 (호스트의 로그인 세션 공유)
+      # Claude Max 인증 정보 마운트 (비root claude 사용자 홈)
       - ${USERPROFILE}/.claude:/home/claude/.claude
       - ${USERPROFILE}/.claude.json:/home/claude/.claude.json
     env_file:
@@ -140,7 +142,7 @@ services:
   - `docker-compose.claude.yml`
   - `.claude-output/`
 
-### 6. Docker 이미지 빌드 (조건부)
+### 7. Docker 이미지 빌드 (조건부)
 - 먼저 이미지가 이미 존재하는지 확인:
 ```bash
 docker images --filter "reference={프로젝트명}-claude" --format "{{.ID}}"
@@ -153,11 +155,12 @@ docker compose -f docker-compose.claude.yml build
 
 ## Phase 2: 기능 구현 실행
 
-### 7. 기존 컨테이너 확인
-- 실행 전 동일 이름의 컨테이너가 이미 존재하는지 확인
+### 8. 기존 컨테이너 확인
+
+`docker compose run`은 `container_name`을 무시하므로, 이미지 기반으로 검색한다:
 
 ```bash
-docker ps -a --filter "name={프로젝트명}-claude" --format "{{.ID}} {{.Status}}"
+docker ps -a --filter "ancestor={프로젝트명}-claude" --format "{{.ID}} {{.Names}} {{.Status}}"
 ```
 
 - **실행 중(Up)인 경우**: 사용자에게 선택지 제공
@@ -165,20 +168,17 @@ docker ps -a --filter "name={프로젝트명}-claude" --format "{{.ID}} {{.Statu
   - "기존 컨테이너 중지 후 새로 실행"
   - "취소"
 - **중지 상태(Exited)인 경우**: 자동으로 제거 후 새로 실행
-  ```bash
-  docker rm {프로젝트명}-claude
-  ```
 - **존재하지 않는 경우**: 그대로 진행
 
-### 8. 구현 프롬프트 준비
+### 9. 구현 프롬프트 준비
 
 **speckit 설계 문서를 반드시 먼저 읽어야 한다.** 구현은 이 문서들을 근거로 해야 하며, 추측이나 임의 판단으로 구현하지 않는다.
 
 읽어야 할 파일 (존재하는 것만):
-1. `.specify/memory/constitution.md` — 변하지 않는 원칙 (NON-NEGOTIABLE 항목 파악)
-2. `specs/*/spec.md` — 기능 요구사항 (유저 스토리, 수용 기준)
-3. `specs/*/plan.md` — 기술 구현 계획
-4. `specs/*/tasks.md` — 구체적 작업 목록 (있으면 이것을 최우선으로 따름)
+1. `.spec/constitution.md` — 변하지 않는 원칙 (NON-NEGOTIABLE 항목 파악)
+2. `.spec/spec.md` — 기능 요구사항 (유저 스토리, 수용 기준)
+3. `.spec/plan.md` — 기술 구현 계획
+4. `.spec/tasks.md` — 구체적 작업 목록 (있으면 이것을 최우선으로 따름)
 5. `CLAUDE.md` — 프로젝트별 AI 지시사항
 6. `AGENTS.md` — AI 에이전트 지시사항
 
@@ -192,39 +192,49 @@ docker ps -a --filter "name={프로젝트명}-claude" --format "{{.ID}} {{.Statu
 - 읽은 설계 문서를 요약하여 "이 내용을 기반으로 구현할까요?"라고 확인
 - 사용자가 수정하거나 다른 작업을 지정하면 그에 따름
 
-### 9. Docker 컨테이너에서 Claude Code 실행
-- 컨테이너를 실행하고 Claude Code를 `--dangerously-skip-permissions` 모드로 실행
-- `-p` 플래그로 구현 프롬프트를 전달하고 `--output-format stream-json`으로 결과를 캡처
-- 프롬프트는 반드시 speckit 설계 문서(constitution, spec, plan, tasks)를 근거로 구성한다
-- `--name` 플래그 대신 `container_name`이 compose에 설정되어 있으므로 `--rm` 사용 시 주의
+### 10. Docker 컨테이너에서 Claude Code 실행
 
-프롬프트 구성 예시:
-```
-다음 speckit 설계 문서를 기반으로 구현을 진행해:
-
-1. Constitution 원칙 준수 (.specify/memory/constitution.md 참조)
-2. Spec 요구사항: [spec.md에서 읽은 유저 스토리 요약]
-3. 구현 대상: [plan.md 또는 tasks.md에서 읽은 작업 목록]
-
-tasks.md가 있으면 완료되지 않은 태스크(- [ ])를 순서대로 구현하고,
-각 태스크 완료 시 - [x]로 체크해.
-```
+**필수 플래그 조합**: `-p` (print 모드) + `--verbose` + `--output-format stream-json`
+(`--output-format stream-json`은 `--verbose` 없이 사용하면 에러 발생)
 
 ```bash
-docker compose -f docker-compose.claude.yml run --rm claude \
+MSYS_NO_PATHCONV=1 docker compose -f docker-compose.claude.yml run --rm claude \
   claude --dangerously-skip-permissions \
     -p "구현 프롬프트 내용" \
+    --verbose \
     --output-format stream-json \
-    2>&1 | tee /workspace/.claude-output/raw-output.jsonl
+    2>&1 | tee .claude-output/raw-output.jsonl
 ```
 
 - 타임아웃: 최대 10분 (600000ms)
 - 실행 전 출력 디렉토리 생성: `mkdir -p .claude-output`
 - `.claude-output/`을 `.gitignore`에 추가
+- Windows Git Bash에서 반드시 `MSYS_NO_PATHCONV=1` 접두사 사용
 
-### 10. 실행 결과를 MD 파일로 저장
+**컨테이너 접속 방법 안내** (진행 상태 확인용):
+`docker compose run`은 랜덤 컨테이너 이름을 생성하므로, 접속 시:
+```bash
+# 컨테이너 이름 찾기
+docker ps --filter "ancestor={프로젝트명}-claude" --format "{{.Names}}"
+# 접속
+docker exec -it {찾은_컨테이너_이름} bash
+# 진행 확인
+grep -c '\[x\]' /workspace/.spec/tasks.md
+```
+
+### 11. 실행 결과를 MD 파일로 저장
 
 실행 완료 후, 결과를 파싱하여 `.claude-output/result.md`에 저장합니다.
+
+stream-json 출력에서 에러/경고 추출:
+```bash
+grep -o '"text":"[^"]*"' .claude-output/raw-output.jsonl | grep -i "error\|fail\|warn\|fix\|issue"
+```
+
+최종 요약 추출:
+```bash
+grep -o '"text":"[^"]*"' .claude-output/raw-output.jsonl | tail -10
+```
 
 파일 형식:
 ```markdown
@@ -232,12 +242,15 @@ docker compose -f docker-compose.claude.yml run --rm claude \
 
 - **실행 일시**: YYYY-MM-DD HH:MM
 - **프롬프트**: (사용한 프롬프트 요약)
-- **소요 시간**: N초
+- **소요 시간**: N분
 - **종료 상태**: 성공/실패
 
 ## 변경된 파일
 - `path/to/file1` — 설명
 - `path/to/file2` — 설명
+
+## 실행 중 발생한 이슈 및 자동 수정
+(stream-json에서 추출한 에러/수정 내역)
 
 ## 실행 요약
 (Claude의 최종 응답 텍스트)
@@ -246,7 +259,7 @@ docker compose -f docker-compose.claude.yml run --rm claude \
 (있으면 기록, 없으면 "없음")
 ```
 
-### 11. 추가 필요 조치를 MD 파일로 저장
+### 12. 추가 필요 조치를 MD 파일로 저장
 
 실행 결과를 분석하여 `.claude-output/follow-up.md`에 후속 조치를 저장합니다.
 
@@ -277,7 +290,7 @@ docker compose -f docker-compose.claude.yml run --rm claude \
 
 ## Phase 3: 완료 메시지
 
-### 12. 완료 메시지 출력
+### 13. 완료 메시지 출력
 
 ```
 ✅ Docker Claude Dangerous Mode 실행 완료!
@@ -287,12 +300,30 @@ docker compose -f docker-compose.claude.yml run --rm claude \
   .claude-output/follow-up.md   — 추가 필요 조치
 
 수동 실행 방법:
-  docker compose -f docker-compose.claude.yml run --rm claude bash
+  MSYS_NO_PATHCONV=1 docker compose -f docker-compose.claude.yml run --rm claude bash
 
 컨테이너 안에서:
   claude login              # 최초 1회
   claude --dangerously-skip-permissions
 
+컨테이너 접속 (실행 중일 때):
+  docker ps --filter "ancestor={프로젝트명}-claude" --format "{{.Names}}"
+  docker exec -it {컨테이너_이름} bash
+
 이미지 재빌드 (Claude Code 업데이트 시):
   docker compose -f docker-compose.claude.yml build --no-cache
 ```
+
+---
+
+## 알려진 이슈 및 해결 방법 (Lessons Learned)
+
+| 이슈 | 원인 | 해결 |
+|------|------|------|
+| `--dangerously-skip-permissions cannot be used with root/sudo` | Claude Code 보안 정책: root에서 dangerous mode 차단 | Dockerfile에서 비root `claude` 사용자 생성 후 `USER claude` 설정 |
+| `--output-format=stream-json requires --verbose` | `-p` (print) 모드에서 stream-json은 verbose 필수 | `--verbose` 플래그 추가 |
+| `docker exec` 시 컨테이너 이름 불일치 | `docker compose run`은 `container_name`을 무시하고 랜덤 이름 생성 | `docker ps --filter "ancestor={이미지명}"` 으로 실제 이름 검색 |
+| Git Bash 경로 변환 | Windows Git Bash가 `/root/` 등을 Windows 경로로 변환 | 모든 docker 명령 앞에 `MSYS_NO_PATHCONV=1` 추가 |
+| pnpm 의존성 설치 실패 (첫 시도) | 네트워크/캐시 문제 | Claude Code가 자동 재시도하여 해결됨 (일반적 동작) |
+| Client/Server Component 경계 위반 | Client Component가 서버 전용 모듈 import | 순수 함수를 별도 파일로 분리 (예: `tree-utils.ts`) |
+| Supabase 타입 순환 참조 | `Insert`/`Update` 타입이 자기참조 | 명시적 타입으로 재작성 필요 |
