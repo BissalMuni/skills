@@ -1,6 +1,6 @@
 ---
-name: docs-write
-description: 현재 대화에서 공부한 내용을 MDX 문서로 작성하여 study-dev 프로젝트의 docs/ 폴더에 저장합니다. Use when user says "문서로 만들어줘", "정리해줘", "공부 내용 저장" or runs /docs-write.
+name: sync-write-doc-to-studydev
+description: 현재 대화에서 공부한 내용을 MDX 문서로 작성하여 study-dev 프로젝트의 docs/ 폴더에 저장합니다. Use when user says "문서로 만들어줘", "정리해줘", "공부 내용 저장" or runs /sync-write-doc-to-studydev.
 ---
 
 # 학습 내용 MDX 문서 작성
@@ -122,7 +122,7 @@ tags: ["tag1", "tag2"]
 🏷️ 태그: {tags}
 
 로컬 확인: cd ~/Downloads/coding/study-dev && pnpm dev
-배포: /docs-publish 실행
+배포: /sync-publish-doc-to-studydev 실행
 ```
 
 ## 소스 프로젝트 코드 참조
@@ -140,7 +140,5 @@ tags: ["tag1", "tag2"]
 
 ## Guidelines
 
-- 문서 하나에 하나의 주제만 다룬다
-- 너무 길지 않게 (200줄 이내 권장)
 - 기존 문서와 중복되지 않도록 기존 docs/ 폴더를 먼저 확인한다
-- 문서 저장만 하고 git commit/push는 하지 않는다 (/docs-publish가 담당)
+- 문서 저장만 하고 git commit/push는 하지 않는다 (/sync-publish-doc-to-studydev가 담당)

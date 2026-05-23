@@ -1,6 +1,6 @@
 ---
-name: docs-publish
-description: study-dev 프로젝트의 새로운/변경된 문서를 GitHub에 커밋하고 푸시합니다. Use when user says "문서 올려줘", "배포해줘", "publish" or runs /docs-publish.
+name: sync-publish-doc-to-studydev
+description: study-dev 프로젝트의 새로운/변경된 문서를 GitHub에 커밋하고 푸시합니다. Use when user says "문서 올려줘", "배포해줘", "publish" or runs /sync-publish-doc-to-studydev.
 ---
 
 # 학습 문서 GitHub 배포
