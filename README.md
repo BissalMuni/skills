@@ -10,7 +10,7 @@ Claude Code custom skills for project initialization and development workflows.
 | `init-docker-dangerous` | Set up Docker environment for Claude Code `--dangerously-skip-permissions` mode |
 | `docs-write` | 대화에서 학습한 내용을 MDX 문서로 작성하여 study-dev에 저장 |
 | `docs-publish` | study-dev의 문서를 GitHub에 커밋/푸시 |
-| `git-sync` | 현재 git 레포를 리모트와 안전하게 동기화(fetch + pull), 미커밋 변경 보존 |
+| `sync-from-github-remote` | 현재 git 레포를 리모트와 안전하게 동기화(fetch + pull), 미커밋 변경 보존 |
 
 ## Installation
 
@@ -25,7 +25,7 @@ cp -r skills/init-speckit ~/.claude/skills/
 cp -r skills/init-docker-dangerous ~/.claude/skills/
 cp -r skills/docs-write ~/.claude/skills/
 cp -r skills/docs-publish ~/.claude/skills/
-cp -r skills/git-sync ~/.claude/skills/
+cp -r skills/sync-from-github-remote ~/.claude/skills/
 ```
 
 ## Usage
@@ -36,7 +36,7 @@ In Claude Code, use the slash commands:
 - `/init-docker-dangerous` — Set up Docker dangerous mode environment
 - `/docs-write` — 학습 내용을 MDX 문서로 정리/저장
 - `/docs-publish` — 문서를 GitHub에 배포
-- `/git-sync` — 현재 레포를 리모트와 동기화(pull), 미커밋 변경 보존
+- `/sync-from-github-remote` — 현재 레포를 리모트와 동기화(pull), 미커밋 변경 보존
 
 ## spec-kit Workflow
 

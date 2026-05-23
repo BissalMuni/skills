@@ -1,6 +1,6 @@
 ---
-name: git-sync
-description: 현재 git 레포지토리를 GitHub 리모트와 안전하게 동기화(fetch + pull)합니다. 로컬 미커밋 변경을 보존하며 ahead/behind 상태에 따라 fast-forward, rebase, 또는 충돌 보고를 수행합니다. Use when user says "리모트 동기화", "깃 동기화", "최신으로 맞춰줘", "pull", "sync" or runs /git-sync.
+name: sync-from-github-remote
+description: 현재 git 레포지토리를 GitHub 리모트와 안전하게 동기화(fetch + pull)합니다. 로컬 미커밋 변경을 보존하며 ahead/behind 상태에 따라 fast-forward, rebase, 또는 충돌 보고를 수행합니다. Use when user says "리모트 동기화", "깃 동기화", "최신으로 맞춰줘", "pull", "sync" or runs /sync-from-github-remote.
 ---
 
 # Git 리모트 동기화
