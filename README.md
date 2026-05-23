@@ -11,6 +11,7 @@ Claude Code custom skills for project initialization and development workflows.
 | `sync-write-doc-to-studydev` | 대화에서 학습한 내용을 MDX 문서로 작성하여 study-dev에 저장 |
 | `sync-publish-doc-to-studydev` | study-dev의 문서를 GitHub에 커밋/푸시 |
 | `sync-from-github-remote` | 현재 git 레포를 리모트와 안전하게 동기화(fetch + pull), 미커밋 변경 보존 |
+| `session-log` | 현재 대화를 요약해 프로젝트의 docs/sessions/에 작업 일지(Journal)로 저장 |
 
 ## Installation
 
@@ -26,6 +27,7 @@ cp -r skills/init-docker-dangerous ~/.claude/skills/
 cp -r skills/sync-write-doc-to-studydev ~/.claude/skills/
 cp -r skills/sync-publish-doc-to-studydev ~/.claude/skills/
 cp -r skills/sync-from-github-remote ~/.claude/skills/
+cp -r skills/session-log ~/.claude/skills/
 ```
 
 ## Usage
@@ -37,6 +39,7 @@ In Claude Code, use the slash commands:
 - `/sync-write-doc-to-studydev` — 학습 내용을 MDX 문서로 정리/저장
 - `/sync-publish-doc-to-studydev` — 문서를 GitHub에 배포
 - `/sync-from-github-remote` — 현재 레포를 리모트와 동기화(pull), 미커밋 변경 보존
+- `/session-log` — 현재 대화를 작업 일지로 docs/sessions/에 저장
 
 ## spec-kit Workflow
 
